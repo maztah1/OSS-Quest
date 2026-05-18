@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  githubId      String    @unique
+  username      String    @unique
+  avatarUrl     String?
+  xp            Int       @default(0)
+  streak        Int       @default(0)
+  lastActiveAt  DateTime?
+  createdAt     DateTime  @default(now())
+
+  contributions Contribution[]
+  userQuests    UserQuest[]
+  achievements  UserAchievement[]
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model Contribution {
+  id        String           @id @default(cuid())
+  userId    String
+  type      ContributionType
+  repoName  String
+  xpAwarded Int
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+enum ContributionType {
+  PR_MERGED
+  ISSUE_RESOLVED
+  PR_REVIEW
+}
+
+model Quest {
+  id          String    @id @default(cuid())
+  title       String
+  description String
+  xpReward    Int
+  type        QuestType
+  startsAt    DateTime
+  endsAt      DateTime
+
+  userQuests UserQuest[]
+}
+
+enum QuestType {
+  DAILY
+  WEEKLY
+  SEASONAL
+}
+
+model UserQuest {
+  id          String      @id @default(cuid())
+  userId      String
+  questId     String
+  status      QuestStatus @default(IN_PROGRESS)
+  completedAt DateTime?
+
+  user  User  @relation(fields: [userId], references: [id])
+  quest Quest @relation(fields: [questId], references: [id])
+
+  @@unique([userId, questId])
+}
+
+enum QuestStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+model Achievement {
+  id          String @id @default(cuid())
+  name        String @unique
+  description String
+  badgeUrl    String?
+  xpReward    Int
+
+  userAchievements UserAchievement[]
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  earnedAt      DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id])
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
+}
+
+// NextAuth required models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
